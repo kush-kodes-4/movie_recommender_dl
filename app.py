@@ -5,13 +5,29 @@ import numpy as np
 import keras
 import pickle
 import pandas as pd
+import html
+import re
+import textwrap
 
 st.set_page_config(
-    page_title="Movie Recommender & Taste Analytics",
-    page_icon="🎬",
+    page_title="Movie Recommender AI & Taste Analytics",
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+def render_html(html_str):
+    clean_str = " ".join(line.strip() for line in html_str.strip().splitlines())
+    st.markdown(clean_str, unsafe_allow_html=True)
+
+def format_movie_title(raw_title):
+    if not raw_title or not isinstance(raw_title, str):
+        return "Unknown Movie"
+    match = re.match(r'^(.*),\s*(The|A|An|Les|La|Le|Il|Der|Die|Das)\s*(\(\d{4}\).*)$', raw_title.strip(), re.IGNORECASE)
+    if match:
+        formatted = f"{match.group(2)} {match.group(1)} {match.group(3)}"
+    else:
+        formatted = raw_title.strip()
+    return html.escape(formatted, quote=False)
 
 @st.cache_data
 def get_movie_data():
@@ -27,7 +43,7 @@ def get_movie_data():
     for _, row in movies_df.iterrows():
         movie_genres = [g for g in clean_genres if row[g] == 1]
         movie_dict[row['movie_id']] = {
-            'title': row['title'],
+            'title': format_movie_title(row['title']),
             'release_date': row['release_date'],
             'genres': movie_genres
         }
@@ -59,8 +75,15 @@ def load_mappings():
 
 st.markdown("""
 <style>
+   
+
+  
+    .stApp {
+    background-color: #1e1e1e; 
+    }
     .movie-card {
-        background-color: var(--secondary-background-color, #f8fafc);
+        background-color: var(--secondary-background-color, #1c1c1c);
+        color: var(--text-color, #111827);
         border: 1px solid rgba(128, 128, 128, 0.2);
         border-radius: 12px;
         padding: 1.2rem;
@@ -71,7 +94,7 @@ st.markdown("""
     .movie-card:hover {
         transform: translateY(-3px);
         box-shadow: 0 10px 20px rgba(0, 0, 0, 0.12);
-        border-color: #ff4b4b;
+        
     }
     .card-badges {
         display: flex;
@@ -99,8 +122,9 @@ st.markdown("""
     .movie-title {
         font-size: 1.15rem;
         font-weight: 600;
+        color: var(--text-color, #ffffff);
         margin-bottom: 0.35rem;
-        line-height: 1.3;
+        line-height: 1.35;
     }
     .movie-rating {
         font-size: 0.95rem;
@@ -111,7 +135,7 @@ st.markdown("""
     .genre-badge {
         display: inline-block;
         background: rgba(128, 128, 128, 0.15);
-        color: inherit;
+        color: var(--text-color, #ffffff);
         font-size: 0.72rem;
         font-weight: 500;
         padding: 2px 8px;
@@ -120,17 +144,25 @@ st.markdown("""
         margin-top: 4px;
         border: 1px solid rgba(128, 128, 128, 0.2);
     }
+    [data-testid="stSidebar"] {
+        background-color: #1e1e1e;
+    }
+    [data-testid="stSidebar"] * {
+        color: #f3f4f6;
+    }
     .profile-hero {
-        background-color: var(--secondary-background-color, #f8fafc);
-        border: 1px solid rgba(128, 128, 128, 0.25);
+        background-color: #ffffff;
+        color: #111827;
+        border: 1px solid #e5e7eb;
         border-radius: 12px;
         padding: 1.25rem 1.5rem;
         margin-bottom: 1.2rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     }
     .profile-chip {
         display: inline-block;
-        background: rgba(255, 75, 75, 0.12);
-        color: #ff4b4b;
+        background: rgba(255, 75, 75, 0.15);
+        color: #dc2626;
         font-weight: 700;
         padding: 4px 10px;
         border-radius: 6px;
@@ -148,7 +180,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-with st.spinner("Initializing Recommender & Analytics Engine..."):
+with st.spinner("Initializing Recommender and Analytics Engine..."):
     model = load_model()
     mappings = load_mappings()
     movie_data, all_genres, movies_df = get_movie_data()
@@ -160,7 +192,8 @@ movie_encoded2movie = mappings["movie_encoded2movie"]
 num_movies = mappings["num_movies"]
 
 with st.sidebar:
-    st.markdown("## **Control Panel")
+    st.header("Control Panel")
+    
     
     user_id_input = st.number_input(
         "Select User ID",
@@ -168,12 +201,12 @@ with st.sidebar:
         max_value=943,
         step=1,
         value=1,
-        help="Select any of the 943 real users in the MovieLens 100k benchmark."
+        help="Select any of the 943 users in the MovieLens 100k benchmark."
     )
     user_id = int(user_id_input)
     
     st.markdown("---")
-    st.markdown("Recommendation Tuning")
+    st.subheader("Recommendation Tuning")
     
     top_n = st.slider(
         "Recommendations Count (Top-N)",
@@ -196,19 +229,19 @@ with st.sidebar:
     )
     
     st.markdown("---")
-    get_recs_btn = st.button("Generate AI Recommendations", type="primary", use_container_width=True)
+    get_recs_btn = st.button("Generate Recommendations", type="primary", use_container_width=True)
     
     with st.expander("Dataset Information", expanded=False):
-        st.markdown("""
+        st.markdown(textwrap.dedent("""
         * **Dataset:** MovieLens 100K
         * **Total Users:** 943 (min 20 ratings/user)
         * **Total Movies:** 1,682
         * **Ratings Scale:** 1.0 to 5.0
         * **Embedding Size:** 50 dimensions
-        """)
+        """).strip())
 
-st.title("Movie Recommender & Taste Analytics")
-st.markdown("Deep collaborative filtering recommendation system with user taste profiling and model diagnostics.")
+st.title("Movie Recommender AI & Taste Analytics")
+st.markdown("Collaborative filtering recommendation system with user taste profiling and model diagnostics.")
 
 if user_id in user_profiles:
     profile = user_profiles[user_id]
@@ -225,20 +258,20 @@ if user_id in user_profiles:
     user_genre_counts = user_merged[all_genres].sum()
     top_genre_name = user_genre_counts.idxmax() if not user_genre_counts.empty and user_genre_counts.max() > 0 else "N/A"
     
-    st.markdown(f"""
+    render_html(f"""
     <div class="profile-hero">
         <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;">
             <div>
-                <span class="profile-chip">👤 User #{user_id}</span>
-                <span style="font-weight: 600; font-size: 1.1rem;">{age} years old • {gender_full} • {occupation_str}</span>
-                <span style="font-size: 0.85rem; opacity: 0.7; margin-left: 6px;">(ZIP: {zip_code})</span>
+                <span class="profile-chip">User #{user_id}</span>
+                <span style="font-weight: 600; font-size: 1.1rem; color: #111827;">{age} years old • {gender_full} • {occupation_str}</span>
+                <span style="font-size: 0.85rem; color: #6b7280; margin-left: 6px;">(ZIP: {zip_code})</span>
             </div>
             <div style="margin-top: 6px;">
-                <span style="font-size: 0.95rem;">Rated: <strong>{num_ratings} movies</strong> | Avg Score: <strong>{avg_rating:.2f} ★</strong> | Primary Genre: <strong>{top_genre_name}</strong></span>
+                <span style="font-size: 0.95rem; color: #374151;">Rated: <strong style="color: #111827;">{num_ratings} movies</strong> | Avg Score: <strong style="color: #111827;">{avg_rating:.2f} / 5.0</strong> | Primary Genre: <strong style="color: #111827;">{top_genre_name}</strong></span>
             </div>
         </div>
     </div>
-    """, unsafe_allow_html=True)
+    """)
 else:
     user_history = ratings_df[ratings_df['user_id'] == user_id]
     num_ratings = len(user_history)
@@ -248,9 +281,9 @@ else:
     top_genre_name = "N/A"
 
 tab_recs, tab_analytics, tab_explain = st.tabs([
-    " AI Recommendations",
-    " User Taste & Historical Analytics",
-    "AI Explainability & Alignment"
+    "Recommendations",
+    "User Taste & Historical Analytics",
+    "Model Explainability & Alignment"
 ])
 
 rated_movie_ids = set(user_history['movie_id']) if num_ratings > 0 else set()
@@ -263,7 +296,7 @@ user_encoded = user2user_encoded[user_id]
 user_encoded_arr = np.array([user_encoded] * num_movies)
 movie_encoded_arr = np.array(range(num_movies))
 
-with st.spinner("Analyzing neural embedding preferences across 1,682 movies..."):
+with st.spinner("Analyzing neural embedding preferences across catalog..."):
     predictions = model.predict([user_encoded_arr, movie_encoded_arr], verbose=0).flatten()
 
 valid_indices = []
@@ -295,7 +328,7 @@ with tab_recs:
     else:
         st.subheader(f"Recommended Movies ({len(top_indices)} items)")
         if exclude_rated:
-            st.caption("Showing movies user has **not yet rated**.")
+            st.caption("Showing movies user has not yet rated.")
         else:
             st.caption("Showing top movies across the entire catalog (including previously watched).")
             
@@ -312,16 +345,13 @@ with tab_recs:
             
             match_pct = int(np.clip((pred_rating / 5.0) * 100, 45, 99))
             
-            stars_count = max(1, min(5, round(pred_rating)))
-            stars_visual = "★" * stars_count + "☆" * (5 - stars_count)
-            
             genre_badges_html = "".join([f'<span class="genre-badge">{g}</span>' for g in genres]) if genres else '<span class="genre-badge">General</span>'
             
             is_previously_rated = m_id in rated_movie_ids
             seen_badge_html = '<span class="seen-badge">Previously Rated</span>' if is_previously_rated else ''
             
             with target_col:
-                st.markdown(f"""
+                render_html(f"""
                 <div class="movie-card">
                     <div class="card-badges">
                         <span class="rank-pill">#{rank} Recommendation</span>
@@ -331,23 +361,23 @@ with tab_recs:
                         </div>
                     </div>
                     <div class="movie-title">{title}</div>
-                    <div class="movie-rating">{stars_visual} {pred_rating:.2f} / 5.00</div>
+                    <div class="movie-rating">Predicted Rating: {pred_rating:.2f} / 5.00</div>
                     <div>{genre_badges_html}</div>
                 </div>
-                """, unsafe_allow_html=True)
+                """)
 
 with tab_analytics:
-    st.subheader(f"📊 Historical Taste Profile for User #{user_id}")
+    st.subheader(f"Historical Taste Profile for User #{user_id}")
     
     m1, m2, m3, m4 = st.columns(4)
     with m1:
         st.metric("Total Movies Rated", f"{num_ratings}")
     with m2:
-        st.metric("Average Rating Given", f"{avg_rating:.2f} ★")
+        st.metric("Average Rating Given", f"{avg_rating:.2f} / 5.0")
     with m3:
         high_ratings = len(user_history[user_history['rating'] >= 4])
         high_pct = (high_ratings / num_ratings * 100) if num_ratings > 0 else 0
-        st.metric("Positive Ratings (4-5★)", f"{high_ratings} ({high_pct:.0f}%)")
+        st.metric("High Ratings (4.0+ Stars)", f"{high_ratings} ({high_pct:.0f}%)")
     with m4:
         st.metric("Most Watched Genre", top_genre_name)
     
@@ -356,7 +386,7 @@ with tab_analytics:
     chart_col1, chart_col2 = st.columns(2)
     
     with chart_col1:
-        st.markdown("Historical Genre Affinity")
+        st.subheader("Historical Genre Affinity")
         st.caption("Distribution of genres across all movies previously watched by this user.")
         if not user_genre_counts.empty and user_genre_counts.max() > 0:
             top_user_genres = user_genre_counts[user_genre_counts > 0].sort_values(ascending=False).head(10)
@@ -365,8 +395,8 @@ with tab_analytics:
             st.info("No genre data available.")
             
     with chart_col2:
-        st.markdown("Historical Rating Distribution")
-        st.caption("How critical is this user? Breakdown of 1-star to 5-star ratings given.")
+        st.subheader("Historical Rating Distribution")
+        st.caption("Breakdown of 1-star to 5-star ratings given by this user.")
         if num_ratings > 0:
             rating_dist = user_history['rating'].value_counts().reindex([1, 2, 3, 4, 5], fill_value=0)
             rating_dist.index = ["1 Star", "2 Stars", "3 Stars", "4 Stars", "5 Stars"]
@@ -376,7 +406,7 @@ with tab_analytics:
 
     st.markdown("---")
     
-    st.markdown("Top 5 Historical Favorites (From Training Data)")
+    st.subheader("Top 5 Historical Favorites (From Training Data)")
     top_favs = user_history.sort_values(by=['rating', 'timestamp'], ascending=[False, False]).head(5)
     
     fav_cols = st.columns(min(5, max(1, len(top_favs))))
@@ -386,19 +416,18 @@ with tab_analytics:
         m_title = m_info.get('title', f"Movie #{m_id}")
         m_genres = ", ".join(m_info.get('genres', [])[:2])
         with fav_cols[idx]:
-            st.markdown(f"""
-            <div style="background: var(--secondary-background-color, #f8fafc); border: 1px solid rgba(128,128,128,0.2); padding: 0.9rem; border-radius: 10px; text-align: center; height: 100%;">
-                <div style="font-size: 0.9rem; font-weight: 600; margin-bottom: 0.3rem;">{m_title}</div>
-                <div style="color: #f59e0b; font-size: 0.85rem; font-weight: 700;">{"★" * int(fav_row['rating'])} ({fav_row['rating']}/5)</div>
+            render_html(f"""
+            <div style="background: var(--secondary-background-color, #f8fafc); color: var(--text-color, #111827); border: 1px solid rgba(128,128,128,0.2); padding: 0.9rem; border-radius: 10px; text-align: center; height: 100%;">
+                <div style="font-size: 0.9rem; font-weight: 600; color: var(--text-color, #111827); margin-bottom: 0.3rem;">{m_title}</div>
+                <div style="color: #f59e0b; font-size: 0.85rem; font-weight: 700;">Rating: {fav_row['rating']:.1f} / 5.0</div>
                 <div style="font-size: 0.72rem; opacity: 0.75; margin-top: 0.25rem;">{m_genres}</div>
             </div>
-            """, unsafe_allow_html=True)
+            """)
 
 with tab_explain:
-    st.subheader("Alignment & Recommendation Explainability")
+    st.subheader("AI Alignment & Recommendation Explainability")
     st.markdown("""
-    How did the collaborative neural network decide what to recommend?
-    Below is a comparison between the user's **historical genre affinity** and the **genres recommended by the AI**.
+    Comparison between the user's historical genre preferences and the genres recommended by the neural model.
     """)
     
     if len(top_indices) > 0:
@@ -413,17 +442,17 @@ with tab_explain:
         
         exp_col1, exp_col2 = st.columns(2)
         with exp_col1:
-            st.markdown("Recommended Genres Distribution")
+            st.subheader("Recommended Genres Distribution")
             st.caption(f"Genre frequency among the Top {len(top_indices)} recommended movies.")
             st.bar_chart(rec_genres_series)
             
         with exp_col2:
-            st.markdown("Neural Collaborative Filtering Mechanics")
-            st.markdown(f"""
+            st.subheader("Neural Collaborative Filtering Mechanics")
+            st.markdown(textwrap.dedent(f"""
             * **User Latent Embedding:** User #{user_id} is mapped to a 50-dimensional latent preference vector learned across {num_ratings} training ratings.
             * **Item Latent Embedding:** Each movie is mapped to a 50-dimensional vector capturing latent attributes (tone, director style, era, pacing).
             * **Collaborative Matching:** The model computes interactions between the user's vector and all candidate movies through two Dense layers (128 → 64 units) with Dropout.
             * **Top Overlap:** The model heavily emphasizes **{top_genre_name}**, matching User #{user_id}'s strongest historical signal.
-            """)
+            """).strip())
     else:
         st.info("No recommendations currently generated to analyze.")
